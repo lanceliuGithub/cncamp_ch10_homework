@@ -1,7 +1,7 @@
 # 项目介绍
 
 本项目用于创建一个实验性质的HTTP服务器，仅可用于学习
-https://github.com/lanceliuGithub/cncamp_ch8_homework.git
+https://github.com/lanceliuGithub/cncamp_ch10_homework.git
 
 # 编译二进制可执行文件
 

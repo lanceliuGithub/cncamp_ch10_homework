@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+  "math/rand"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 	"path/filepath"
 	"syscall"
+
+  //"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type MyConfig struct {
@@ -25,6 +28,7 @@ type Server struct {
 type Log struct {
 	Enable              bool `json:"enable"`
 	EnableRequestHeader bool `json:"request_header"`
+  EnableResponseTime  bool `json:"reponse_time"`
 }
 
 const defaultConfigFile = "config.json"
@@ -118,11 +122,26 @@ func loadConfig(confFilename string) {
 	}
 }
 
+func randInt(min int, max int) int {
+  rand.Seed(time.Now().UTC().UnixNano())
+  return min + rand.Intn(max-min)
+}
+
 func handleRoot(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
 	}
+
+  delayMillisecs := randInt(10,2000)
+  delay := time.Millisecond * time.Duration(delayMillisecs)
+  time.Sleep(delay)
+
+	logEnabled := myConf.Log.Enable
+	logResponseTimeEnabled := myConf.Log.EnableResponseTime
+	if logEnabled && logResponseTimeEnabled {
+    log.Printf("wait %d ms\n", delayMillisecs)
+  }
 
 	printRequestHeaders(w, r)
 }

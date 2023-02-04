@@ -5,6 +5,7 @@
 	},
 	"log": {
 		"enable": true,
-		"request_header": false
+		"request_header": false,
+    "reponse_time": true
 	}
 }
