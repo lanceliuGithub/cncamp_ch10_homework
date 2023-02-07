@@ -14,7 +14,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-  //"github.com/prometheus/client_golang/prometheus/promhttp"
+  "github.com/prometheus/client_golang/prometheus/promhttp"
+  //"myhttpserver/metrics"
+  "github.com/lanceliuGithub/cncamp_ch10_homework/metrics"
 )
 
 type MyConfig struct {
@@ -37,6 +39,7 @@ var startTime time.Time
 
 func main() {
 	startTime = time.Now()
+  metrics.Register()
 
 	// Parse Command-Line Flags
 	confFilepathPtr := flag.String("c", defaultConfigFile, "Specify an alternative config file")
@@ -53,6 +56,10 @@ func main() {
 
 	healthzHandler := wrapHandlerWithLogging(http.HandlerFunc(handleHealthz))
 	http.Handle("/healthz", healthzHandler)
+
+  //metricsHandler := wrapHandlerWithLogging(http.HandlerFunc(promhttp.Handler()))
+  //http.Handle("/metrics", metricsHandler)
+  http.Handle("/metrics", promhttp.Handler())
 
 	// Start HTTP server
 	go func() {
@@ -132,6 +139,9 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+
+  timer := metrics.NewTimer()
+  defer timer.ObserveTotal()
 
   delayMillisecs := randInt(10,2000)
   delay := time.Millisecond * time.Duration(delayMillisecs)

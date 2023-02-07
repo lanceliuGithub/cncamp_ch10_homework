@@ -1,9 +1,9 @@
 FROM golang:1.19 AS build
 WORKDIR /go/src/myhttpserver
-COPY ["myhttpserver.go", "config.json", "./"]
+COPY ["myhttpserver.go", "metrics", "config.json", "go.mod", "go.sum", "./"]
 
 ENV CGO_ENABLED=0   \
-    GO111MODULE=off \
+    GO111MODULE=on  \
     GOOS=linux      \
     GOARCH=amd64
 #ENV GOPROXY=https://goproxy.cn,direct
