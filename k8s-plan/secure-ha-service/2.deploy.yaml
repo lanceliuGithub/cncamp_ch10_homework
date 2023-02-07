@@ -13,12 +13,16 @@ spec:
 
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8888"
       labels:
         app: myhttpserver
     spec:
       terminationGracePeriodSeconds: 20
       containers:
         - name: myhttpserver
+          imagePullPolicy: Always
           image: lanceliu2022/myhttpserver:1.0-metrics
 
           resources:

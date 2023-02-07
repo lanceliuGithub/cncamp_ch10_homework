@@ -172,3 +172,94 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 -addext "subjectAltName = DNS:lancelot.cn" \
 -keyout lancelot_cn.key -out lancelot_cn.crt
 ```
+
+# 模拟监控
+
+## 为 HTTPServer 添加 0-2 秒的随机延时
+
+见 myhttpserver.go
+```
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+  ...
+  delayMillisecs := randInt(10,2000)
+  delay := time.Millisecond * time.Duration(delayMillisecs)
+  time.Sleep(delay)
+  ...
+}
+
+func randInt(min int, max int) int {
+  rand.Seed(time.Now().UTC().UnixNano())
+  return min + rand.Intn(max-min)
+}
+```
+
+## 为 HTTPServer 项目添加延时 Metric
+
+见 myhttpserver.go 和 metrics/metrics.go
+引入了 prometheus 依赖 github.com/prometheus/client_golang/prometheus/promhttp
+```
+func main() {
+  startTime = time.Now()
+  metrics.Register()
+  ...
+	http.Handle("/metrics", promhttp.Handler())
+	...
+}
+
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	...
+  timer := metrics.NewTimer()
+  defer timer.ObserveTotal()
+	...
+}
+```
+
+## 将 HTTPServer 部署至测试集群，并完成 Prometheus 配置
+
+安装 Helm
+```
+curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null
+apt-get install apt-transport-https --yes
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | tee /etc/apt/sources.list.d/helm-stable-debian.list
+apt-get update
+apt-get install helm
+```
+
+安装 Loki 和 Grafana
+```
+helm repo add grafana https://grafana.github.io/helm-charts
+helm upgrade --install loki grafana/loki-stack --set grafana.enabled=true,prometheus.enabled=true,prometheus.alertmanager.persistentVolume.enabled=false,prometheus.server.persistentVolume.enabled=false
+```
+
+修改 Grafana Service 类型为 NodePort
+```
+kubectl patch svc loki-grafana --type='json' -p '[{"op":"replace","path":"/spec/type","value":"NodePort"},{"op":"replace","path":"/spec/ports/0/nodePort","value":30066}]'
+```
+
+获取 Grafana 的用户名和口令
+```
+kubectl get secret loki-grafana -ojson | jq -r '.data."admin-user"' | base64 -d
+kubectl get secret loki-grafana -ojson | jq -r '.data."admin-password"' | base64 -d
+```
+
+## 从 Promethus 界面中查询延时指标数据
+
+生成测试用的延迟指标数据
+```
+GATEWAY=`kubectl get -n ingress-nginx svc ingress-nginx-controller -ojson | jq -r '.spec.clusterIP'`
+for i in {1..100}; do curl -k -H "Host: lancelot.cn" https://$GATEWAY; done
+```
+
+查看实时指标数据
+```
+curl -s -k -H "Host: lancelot.cn" https://$GATEWAY/metrics | grep execution_latency_seconds
+```
+
+## 创建一个 Grafana Dashboard 展现延时分配情况
+
+配置 Grafana 监控
+```
+histogram_quantile(0.95, sum(rate(default_execution_latency_seconds_bucket[5m])) by (le))
+histogram_quantile(0.90, sum(rate(default_execution_latency_seconds_bucket[5m])) by (le))
+histogram_quantile(0.50, sum(rate(default_execution_latency_seconds_bucket[5m])) by (le))
+```
