@@ -19,7 +19,7 @@ spec:
       terminationGracePeriodSeconds: 20
       containers:
         - name: myhttpserver
-          image: lanceliu2022/myhttpserver:1.0
+          image: lanceliu2022/myhttpserver:1.0-metrics
 
           resources:
             # QoS保证：Guaranteed
